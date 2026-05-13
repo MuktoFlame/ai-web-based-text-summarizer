@@ -1,0 +1,25 @@
+# Python bytecode
+__pycache__/
+
+# Virtual environment
+.venv/
+
+# Real secrets (only *.env.example is tracked)
+.env
+
+# Personal n8n exports
+workflow.local.json
+*.local.json
+
+# Personal notes / video links
+demo-video-link.txt
+notes.txt
+
+# Recorded video files (too large for GitHub & personal)
+*.mp4
+
+# VS Code workspace settings
+.vscode/
+
+# Windows
+Thumbs.db

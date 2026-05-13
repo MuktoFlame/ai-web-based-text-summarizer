@@ -1,0 +1,170 @@
+{
+  "name": "AI Text Processing Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-text-processing",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a1111111-1111-4111-8111-111111111111",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "ai-text-processing"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyse the TEXT below and respond with a single JSON object only. No markdown, no code fences, no commentary outside the JSON.\n\nShape:\n{\n  \"summary\": \"a concise 2 to 4 sentence summary\",\n  \"key_points\": [\"point 1\", \"point 2\", \"point 3\"]\n}\n\nThe key_points array must contain exactly 3 short, informative bullet points.\n\nTEXT:\n{{ $('Webhook').item.json.body.text }}",
+        "options": {
+          "systemMessage": "You are an expert at summarising text and extracting key points. Always respond with a single strict JSON object only — no preface, no markdown, no code fences."
+        }
+      },
+      "id": "a2222222-2222-4222-8222-222222222222",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-1.5-flash",
+        "options": {}
+      },
+      "id": "a3333333-3333-4333-8333-333333333333",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [360, 520]
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Webhook').item.json.body.session_id }}"
+      },
+      "id": "a4444444-4444-4444-8444-444444444444",
+      "name": "Simple Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [560, 520]
+    },
+    {
+      "parameters": {
+        "jsCode": "const webhook = $('Webhook').item.json.body || {};\nconst rawOutput = ($json.output || $json.text || '').toString();\n\nlet summary = '';\nlet keyPoints = [];\n\ntry {\n  let jsonStr = rawOutput.trim();\n  jsonStr = jsonStr.replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/, '');\n  const firstBrace = jsonStr.indexOf('{');\n  const lastBrace = jsonStr.lastIndexOf('}');\n  if (firstBrace !== -1 && lastBrace !== -1) {\n    jsonStr = jsonStr.slice(firstBrace, lastBrace + 1);\n  }\n  const parsed = JSON.parse(jsonStr);\n  summary = (parsed.summary || '').toString().trim();\n  keyPoints = parsed.key_points || parsed.keyPoints || parsed.points || [];\n} catch (e) {\n  summary = rawOutput;\n  keyPoints = [];\n}\n\nconst keyPointsText = keyPoints.map((p, i) => (i + 1) + '. ' + p).join('\\n');\n\nreturn [{\n  json: {\n    session_id: webhook.session_id || '',\n    email: webhook.email || '',\n    text: webhook.text || '',\n    source: webhook.source || 'text',\n    source_url: webhook.source_url || '',\n    summary,\n    key_points: keyPoints,\n    key_points_text: keyPointsText,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "a5555555-5555-4555-8555-555555555555",
+      "name": "Build Record",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "<-- Select your own Google Sheet after import"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "",
+          "mode": "list",
+          "cachedResultName": "<-- Select the tab (e.g. Sheet1)"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Session ID": "={{ $json.session_id }}",
+            "Email": "={{ $json.email }}",
+            "Source": "={{ $json.source }}",
+            "Source URL": "={{ $json.source_url }}",
+            "Original Text": "={{ $json.text }}",
+            "Summary": "={{ $json.summary }}",
+            "Key Points": "={{ $json.key_points_text }}",
+            "Timestamp": "={{ $json.timestamp }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {"id": "Session ID", "displayName": "Session ID", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "Email", "displayName": "Email", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "Source", "displayName": "Source", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "Source URL", "displayName": "Source URL", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "Original Text", "displayName": "Original Text", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "Summary", "displayName": "Summary", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "Key Points", "displayName": "Key Points", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true},
+            {"id": "Timestamp", "displayName": "Timestamp", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true}
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "a6666666-6666-4666-8666-666666666666",
+      "name": "Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [920, 300]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Build Record').item.json.email }}",
+        "subject": "=Your AI Summary (Session {{ $('Build Record').item.json.session_id }})",
+        "emailType": "text",
+        "message": "=Hi,\n\nHere is the AI-generated summary of the text you submitted.\n\nSession ID: {{ $('Build Record').item.json.session_id }}\n\n=== Summary ===\n{{ $('Build Record').item.json.summary }}\n\n=== Key Points ===\n{{ $('Build Record').item.json.key_points_text }}\n\n— AI Text Processing Workflow",
+        "options": {}
+      },
+      "id": "a7777777-7777-4777-8777-777777777777",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1140, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ ({ status: 'ok', session_id: $('Build Record').item.json.session_id, summary: $('Build Record').item.json.summary, key_points: $('Build Record').item.json.key_points }) }}",
+        "options": {}
+      },
+      "id": "a8888888-8888-4888-8888-888888888888",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1360, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "AI Agent", "type": "main", "index": 0}]]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [[{"node": "AI Agent", "type": "ai_languageModel", "index": 0}]]
+    },
+    "Simple Memory": {
+      "ai_memory": [[{"node": "AI Agent", "type": "ai_memory", "index": 0}]]
+    },
+    "AI Agent": {
+      "main": [[{"node": "Build Record", "type": "main", "index": 0}]]
+    },
+    "Build Record": {
+      "main": [[{"node": "Google Sheets", "type": "main", "index": 0}]]
+    },
+    "Google Sheets": {
+      "main": [[{"node": "Send Email", "type": "main", "index": 0}]]
+    },
+    "Send Email": {
+      "main": [[{"node": "Respond to Webhook", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "versionId": "1",
+  "id": "ai-text-processing-workflow",
+  "meta": {"templateCredsSetupCompleted": false},
+  "pinData": {},
+  "tags": []
+}
