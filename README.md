@@ -17,21 +17,6 @@ You give it text (or an article URL). It returns:
 
 A Google Gemini agent (running inside an n8n AI Agent node) handles all the language work, with a per-session memory buffer keyed on the request ID.
 
-## Architecture
-
-```
-┌────────────┐    ┌──────────────┐    ┌───────────────────────────┐
-│ Streamlit  │───▶│ FastAPI      │───▶│ n8n  ─ Webhook            │
-│ (frontend) │    │ (backend)    │    │       └─ AI Agent         │
-└────────────┘    └──────────────┘    │            ├─ Gemini LLM  │
-       ▲                              │            └─ Memory      │
-       │                              │       ─ Build Record      │
-       │                              │       ─ Google Sheets ───▶│ Sheet
-       │                              │       ─ Gmail ──────────▶ │ Inbox
-       └──────────── JSON response ◀──│       ─ Respond Webhook   │
-                                      └───────────────────────────┘
-```
-
 ### Why this split?
 
 | Layer | Responsibility |
